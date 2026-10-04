@@ -281,6 +281,32 @@ Things to notice in the file:
 Run `docker history ex1`. Find the layer that holds the compiler and the
 layer that holds the git clone. They are still there after the `rm`.
 
+Somewhat an expected output looks like:
+
+```bash
+IMAGE          CREATED         CREATED BY                                      SIZE      COMMENT
+2f71b6306b91   5 minutes ago   CMD ["lz4" "--version"]                         0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   WORKDIR /work                                   0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   ENV PATH=/opt/lz4/bin:/usr/local/sbin:/usr/l…   0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c rm -rf…   0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   WORKDIR /                                       0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c make i…   1.03MB    buildkit.dockerfile.v0
+<missing>      5 minutes ago   RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c make -…   1.44MB    buildkit.dockerfile.v0
+<missing>      5 minutes ago   RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c git ch…   1.21MB    buildkit.dockerfile.v0
+<missing>      5 minutes ago   WORKDIR /tmp/lz4                                0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c git cl…   9.72MB    buildkit.dockerfile.v0
+<missing>      5 minutes ago   RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c apt-ge…   355MB     buildkit.dockerfile.v0
+<missing>      6 minutes ago   RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c apt-ge…   54MB      buildkit.dockerfile.v0
+<missing>      6 minutes ago   ARG LZ4_VERSION=v1.10.0                         0B        buildkit.dockerfile.v0
+<missing>      2 weeks ago     /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B        
+<missing>      2 weeks ago     /bin/sh -c #(nop) ADD file:6c214fc3c3c22122c…   78.2MB    
+<missing>      2 weeks ago     /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      2 weeks ago     /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B        
+<missing>      2 weeks ago     /bin/sh -c #(nop)  ARG RELEASE                  0B 
+```
+
+Note that the build is also 501 MB large.
+
 ### Example 2: the same build in one layer
 
 File: [`examples/ex2_one_layer/Dockerfile`](examples/ex2_one_layer/Dockerfile)
@@ -304,6 +330,23 @@ The price: the single `RUN` is all or nothing. Change one character and the
 whole thing runs again. For a one-minute build that is fine. Think about what
 it would mean for a two-hour build.
 
+```bash
+IMAGE          CREATED              CREATED BY                                      SIZE      COMMENT
+6b97ebb2f60d   About a minute ago   CMD ["lz4" "--version"]                         0B        buildkit.dockerfile.v0
+<missing>      About a minute ago   WORKDIR /work                                   0B        buildkit.dockerfile.v0
+<missing>      About a minute ago   ENV PATH=/opt/lz4/bin:/usr/local/sbin:/usr/l…   0B        buildkit.dockerfile.v0
+<missing>      About a minute ago   RUN |2 LZ4_VERSION=v1.10.0 DEBIAN_FRONTEND=n…   10.6MB    buildkit.dockerfile.v0
+<missing>      About a minute ago   ARG DEBIAN_FRONTEND=noninteractive              0B        buildkit.dockerfile.v0
+<missing>      About a minute ago   ARG LZ4_VERSION=v1.10.0                         0B        buildkit.dockerfile.v0
+<missing>      2 weeks ago          /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B        
+<missing>      2 weeks ago          /bin/sh -c #(nop) ADD file:6c214fc3c3c22122c…   78.2MB    
+<missing>      2 weeks ago          /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      2 weeks ago          /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B        
+<missing>      2 weeks ago          /bin/sh -c #(nop)  ARG RELEASE                  0B
+```
+
+The docker image size is only 89 MB.
+
 ### Example 3: multi-stage
 
 File: [`examples/ex3_multi_stage/Dockerfile`](examples/ex3_multi_stage/Dockerfile)
@@ -324,6 +367,27 @@ Things to notice:
   run-time library, the build fails right there.
 - `USER ubuntu` makes containers run as a normal user.
 
+The `docker history ex3` shows:
+
+```bash
+IMAGE          CREATED         CREATED BY                                      SIZE      COMMENT
+699440aa9022   5 minutes ago   CMD ["htop" "--version"]                        0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   WORKDIR /work                                   0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   USER ubuntu                                     0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   RUN |1 DEBIAN_FRONTEND=noninteractive /bin/s…   0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   ENV PATH=/opt/htop/bin:/usr/local/sbin:/usr/…   0B        buildkit.dockerfile.v0
+<missing>      5 minutes ago   COPY /opt/htop /opt/htop # buildkit             1.78MB    buildkit.dockerfile.v0
+<missing>      6 minutes ago   RUN |1 DEBIAN_FRONTEND=noninteractive /bin/s…   1.28MB    buildkit.dockerfile.v0
+<missing>      6 minutes ago   ARG DEBIAN_FRONTEND=noninteractive              0B        buildkit.dockerfile.v0
+<missing>      2 weeks ago     /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B        
+<missing>      2 weeks ago     /bin/sh -c #(nop) ADD file:6c214fc3c3c22122c…   78.2MB    
+<missing>      2 weeks ago     /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B        
+<missing>      2 weeks ago     /bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH     0B        
+<missing>      2 weeks ago     /bin/sh -c #(nop)  ARG RELEASE                  0B 
+```
+
+The size is like 81.2 MB.
+
 Try these:
 
 ```
@@ -336,17 +400,19 @@ docker run --rm ex3 id
 `libhwloc15` line in the final stage was found. Then remove that `apt-get`
 block from the final stage, rebuild, and read the error.
 
+Note that the size of `ex3-builder` is 427 MB. Slightly smaller than the original `ex1`.
+
 ### Measure
 
-Fill in this table from `docker images` and `docker history` on your machine.
+Fill in this table from `docker images` and `docker history` on your machine. Note that we have to download `ubuntu:24.04` via `docker pull ubuntu:24.04`.
 
-| Image | Size | Biggest layer and what is in it |
-|---|---|---|
-| `ubuntu:24.04` | | |
-| `ex1` | | |
-| `ex2` | | |
-| `ex3-builder` | | |
-| `ex3` | | |
+| Image          | Size (MB) | Biggest layer and what is in it |
+|----------------|-----------|---------------------------------|
+| `ubuntu:24.04` |      78.2 | /bin/sh -c #(nop) ADD file:6c214fc3c3c22122c7eb68f7fb32783df308e60b1eaeb9baf7e4d0cc961d448d in /|
+| `ex1`          |       501 | RUN |1 LZ4_VERSION=v1.10.0 /bin/sh -c apt-get install -y build-essential git ca-certificates # buildkit |
+| `ex2`          |      88.8 | ADD file:6c214fc3c3c22122c7eb68f7fb32783df308e60b1eaeb9baf7e4d0cc961d448d in / |
+| `ex3-builder`  |       427 | RUN |2 HTOP_VERSION=3.5.3 DEBIAN_FRONTEND=noninteractive /bin/sh -c apt-get update  && apt-get install -y --no-install-recommends         build-essential autoconf automake pkg-config         git ca-certificates libncurses-dev libhwloc-dev  && rm -rf /var/lib/apt/lists/* # buildkit                                |
+| `ex3`          |      81.2 | /bin/sh -c #(nop) ADD file:6c214fc3c3c22122c7eb68f7fb32783df308e60b1eaeb9baf7e4d0cc961d448d in /|
 
 ## 5. Questions before coding
 
