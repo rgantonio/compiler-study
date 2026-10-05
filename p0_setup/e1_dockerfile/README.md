@@ -706,8 +706,6 @@ The frame size is the same for both, but I noticed that for RV32 we have `sw	ra,
 
 </details>
 
-
-
 3. The program is the same C. Why is the `text` size not the same?
 
 <details>
@@ -788,13 +786,3 @@ final size about what you expected from your plan in T2?**
 <summary>Your answer</summary>
 
 </details>
-
-## 13. Grading record
-
-To hand in: push your branch and tell me the commit and the published image
-name. I read the Dockerfile, the check script and its saved output, the
-drawing, `docs/setup.md`, and your answers in sections 5, 9 and 12.
-
-| Date | Commit | Result | Notes |
-|---|---|---|---|
-| | | | |
