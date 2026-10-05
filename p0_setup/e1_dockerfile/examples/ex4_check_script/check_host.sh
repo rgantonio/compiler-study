@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-# Example: check that the normal (x86) build tools on this machine work.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Worked example 4: a check script.
+# It checks that the normal (x86) build tools on this machine work, and
+# shows the three patterns the image check script is built from:
+#   1. a tool is installed and runs
+#   2. the output of a command contains a certain text
+#   3. compile a program, run it, and compare its exit code with a number
+#
 # Run it with:  bash check_host.sh
 
 fails=0     # how many checks failed so far

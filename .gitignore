@@ -1,1 +1,5 @@
+# Patch files are applied with git apply and are not stored in the repo.
 *.patch
+
+# Logs of image builds (docker build ... | tee build.log).
+build*.log

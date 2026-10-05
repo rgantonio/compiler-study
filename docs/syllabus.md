@@ -8,17 +8,22 @@ hardware and C but has never studied compilers.
 - The course is split into parts, sections, exercises and milestones. There
   are no fixed dates. Each exercise states its expected time.
 - Each exercise is one sheet: short theory, worked examples, then tasks the
-  learner solves by hand, with tests the learner writes.
+  learner solves by hand, with tests. Questions on a sheet carry a folded
+  answer, so a finished sheet can be read again as a tutorial.
 - Each section ends with a milestone, which is a slightly larger task. It
   must pass before the next section starts.
-- Some tasks ask for a drawing, such as a stack frame or a memory map.
+- A task may ask for a drawing, such as a stack frame or a memory map. Drawing
+  tasks are optional.
 - RV32IM is the main target. Each sheet ends with a short RV64 comparison.
-- Grading is pass or redo, with written feedback in the sheet.
+- Claude gives hints first and the full answer when asked. Set-up and tool
+  questions are answered directly. A grading record is kept only on request.
 
 ## Tools
 
 All tools are open source and live in one container image, built from
-`util/container/Dockerfile` and published to a registry.
+`util/container/Dockerfile` and published as
+`ghcr.io/rgantonio/compiler-study`. The quick guide is in the top-level
+`README.md`.
 
 | Tool | Used for |
 |---|---|
@@ -27,14 +32,14 @@ All tools are open source and live in one container image, built from
 | Spike and pk | Second simulator |
 | Compiler Explorer | Quick looks at compiler output |
 
-## Part 0: Setup (about 4 hours)
+## Part 0: Setup (about 10 hours, plus build time)
 
 | Exercise | Topic |
 |---|---|
 | e1 | Write the Dockerfile: toolchain, QEMU, Spike, pk. Publish the image. |
 | e2 | Run preprocess, compile, assemble and link one step at a time. |
 | e3 | Repo Makefile with an `XLEN` switch and a test runner. |
-| **M0** | `make test` passes for both word sizes on a fresh clone. Draw the toolchain pipeline. |
+| **M0** | `make test` passes for both word sizes on a fresh clone. Optional: draw the toolchain pipeline. |
 
 ## Part 1: C to assembly (about 14 hours)
 
