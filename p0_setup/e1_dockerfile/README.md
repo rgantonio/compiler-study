@@ -45,6 +45,16 @@ Read sections 3.1 to 3.4 before the questions in section 5. Sections 3.5 to
 The first four come from one repository, `riscv-gnu-toolchain`, which fetches
 and builds GCC, Binutils, newlib and GDB together.
 
+Additional information: A toolchain is the set of programs that together turn source code into something that runs. They are used one after another, each taking the output of the one before, which is where "chain" comes from.
+
+|Step      |	Program	 | Input	| Output |
+|--------- | --------- |------- | -------|
+|Compile   | the compiler (cc1, started by gcc) |	C source |	assembly text (.s) |
+|Assemble	 | the assembler (as)  |	assembly text	 | object file (.o), machine code with gaps for addresses not known yet| 
+|Link	the  | linker (ld)  |	your object files plus libraries  |	one executable (ELF) |
+
+Around those three sit the libraries that get linked in (newlib, `libgcc`, the startup file) and the inspection tools (`objdump`, `readelf`, GDB). The `gcc` command is a driver: it calls the three steps in order, so it looks like one program. Binutils is the package that holds the assembler, the linker and the inspection tools. So binutils is part of the toolchain, next to GCC and the C library.
+
 ### 3.2 What a cross-compiler is
 
 A normal (native) compiler makes programs for the machine it runs on. A
@@ -84,6 +94,11 @@ A letter at the end (`ilp32f`, `lp64d`) means floating-point arguments travel
 in floating-point registers, which only works if `-march` has those registers.
 
 All object files and libraries in one program must use the same ABI.
+
+The `-m` at the front means "machine option": a flag that only exists for one target processor family. So the names split as `-m` + `arch` and `-m` + `abi`.
+
+- `arch` is architecture: which instructions the processor has, so which ones the compiler may use.
+- `abi` is application binary interface: the agreement that separately compiled pieces of code follow so they can call each other. It fixes the sizes of the C types, which registers carry arguments and return values, which registers a function must restore before returning, and how the stack is aligned.
 
 ### 3.4 What multilib is
 
@@ -246,6 +261,20 @@ finds it.
 | ghcr.io | <https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry> | Authenticating, Pushing, Labelling |
 | Apptainer and Docker images | <https://apptainer.org/docs/user/main/docker_and_oci.html> | First two sections |
 | WSL memory | <https://learn.microsoft.com/en-us/windows/wsl/wsl-config> | `.wslconfig`, the `memory` and `processors` keys |
+
+### 3.11 Some other useful information
+
+The `riscv` tools:
+
+| Tool	        | Program name		            |  What it does	                                              |
+| ----          |         ---                 |  ---                                                        |
+| Compiler	    |	riscv64-unknown-elf-gcc	    | C to assembly, and drives the other steps	                  |
+| Assembler		  | riscv64-unknown-elf-as      | Assembly text to object file	                              |
+| Linker	      |	riscv64-unknown-elf-ld	    | Object files and libraries to one executable	              |
+| Disassembler	|	riscv64-unknown-elf-objdump | Shows the instructions inside an object file or executable	|
+| ELF reader	  |	riscv64-unknown-elf-readelf | Shows the headers and sections of an ELF file	              |
+| Size	        |	riscv64-unknown-elf-size		| Shows the sizes of text, data and bss	                      |
+| Debugger	    |	riscv64-unknown-elf-gdb		  | Steps through a program	                                    |
 
 ## 4. Worked examples
 
@@ -426,6 +455,9 @@ What happens if you type `./hello` in WSL after compiling with it?
 <details>
 <summary>Your answer</summary>
 
+The `riscv64-unknown-elf-gcc` runs on the x86-64 and the output assembly needs to run on the RISCV simulators. Qemu or Spike.
+If you run `./hello` after compiling, it will output an error if not run on the RISCV simulator.
+
 </details>
 
 **Q2.** The compiler is called `riscv64-...`, and you will use it for RV32IM.
@@ -435,12 +467,19 @@ step do you expect the failure: compile, assemble or link? Why that step?
 <details>
 <summary>Your answer</summary>
 
+The toolchain needs multilib in order to support a variety of combinations of `-march` and `-mabi`. It affects the link step because it needs to know what architecture or data types you are using. Otherwise it will "mislink" wha tis in 64-bit and 32-bit all together.
+
 </details>
 
 **Q3.** Which `-mabi` goes with `-march=rv32im`? Why can it not be `ilp32d`?
 
 <details>
 <summary>Your answer</summary>
+
+For `-march=rv32im` a `-mabi` of `ilp32` only because the `d` requires floating-point registers but `rv32im` does not have that. Well, to be exact:
+- The `d` stands for double precision, so `ilp32d` needs the 64-bit floating-point registers of the D extension. `ilp32f` is the single-precision version and needs F. `rv32im` has neither, so both are ruled out.
+- You can still use `float` and `double` in C with `rv32im` and `ilp32`. The values are then passed in the integer registers, and the arithmetic is done by helper routines in `libgcc` instead of by instructions. That is called soft float, and it is one of the reasons libgcc must match your flags.
+- There is one more ABI you may run into in the multilib list: `ilp32e`, which goes with the reduced `rv32e` base (16 registers). It is not for `rv32im` either.
 
 </details>
 
@@ -452,6 +491,8 @@ it, and say which one suits a two-hour build better.
 <details>
 <summary>Your answer</summary>
 
+The image is larger (~6GB of original sources) if the deletion of sources is in a separate run. Because docker saves these "steps" in layers and thus keeps the previous source and build step. One way to fix is to combine them in one run. The other way, since it may take long, is to separate a "builder" stage inside the Dockerfile whose task is just to build, but then exporting the target image just copies the files out of that builder stage. Also note that with one combined `RUN`, any change to that line or anything above it reruns the whole two hours. In a builder stage you can split the work over several `RUN` lines and keep the cache for the ones that did not change, because none of those layers are shipped anyway.
+
 </details>
 
 **Q5.** Your program calls `printf("hi\n")`. Follow the text from your
@@ -460,6 +501,19 @@ with pk. Who handles the system call in each case?
 
 <details>
 <summary>Your answer</summary>
+
+From printf to the system call. printf is not a system call. It is a newlib function that runs inside your program as RISC-V code. It builds the string and then calls write, a small newlib routine. That routine puts the system call number in register a7 and the arguments in a0 to a2, and then executes one instruction: ecall. The ecall is the system call. Everything before it is ordinary code in your own program, and it is the same in both cases.
+
+1. QEMU user mode. QEMU translates your RISC-V instructions into x86 instructions and runs those. When it reaches `ecall`, there is no kernel inside the simulation to jump to. QEMU itself, which is x86 code, reads `a7` and `a0` to `a2` from the simulated registers and makes the matching real system call to your Linux kernel. It then writes the result into the simulated `a0` and carries on. No RISC-V code handles the call.
+
+2. Spike. Spike behaves like the hardware. An `ecall` raises a trap: the processor saves the current program counter and jumps to the address held in a control register called `mtvec`. pk set that register when it started, so execution lands in pk's trap handler. That handler is RISC-V code, and Spike executes it instruction by instruction like any other code.
+
+3. Getting out of the simulation. pk has no terminal. It writes a small request describing the system call into a memory location called `tohost`. Spike watches that location. The host side of Spike (called fesvr, x86 code) picks up the request, makes the real `write` call on your laptop, and puts the reply in `fromhost`. This mechanism is HTIF, the host-target interface.
+
+So specific hops are:
+
+1. QEMU user mode: QEMU (x86) → host kernel → terminal
+2. Spike with pk: trap to pk (RISC-V) → tohost → Spike's fesvr (x86) → host kernel → terminal
 
 </details>
 
@@ -470,6 +524,18 @@ before pk can be built? How many pk binaries do you need?
 <details>
 <summary>Your answer</summary>
 
+1. The toolchain stage must be finished before pk can be built.
+2. In a configure command, --host means "the machine the program I am building will run on". Compare the two tools you build:
+
+|Part |	Built on       |	--host (runs on)	| Makes code for |
+| --- | ---            | ---                | ---            |
+|GCC  | cross-compiler |	x86-64	 | x86-64	 | RISC-V |
+|pk   |	x86-64         |	RISC-V	 | nothing, it is not a compiler |
+
+So `--host=riscv64-unknown-elf` says that pk itself is a RISC-V program. It never runs on your laptop's processor. It runs inside Spike, on the simulated one. To make a RISC-V program you need a compiler that outputs RISC-V code, and the only one you have is the cross-compiler from the toolchain stage. The value `riscv64-unknown-elf` is the name prefix of that compiler, so configure knows to call `riscv64-unknown-elf-gcc`.
+
+The number of pk binaries is two, one for RV32 and one for RV64. pk plays the role of the kernel under your program: it loads your ELF, sets up its stack and handles its traps. To do that it has to run on the same processor configuration as the program. A pk compiled as 64-bit code cannot run on a simulated 32-bit processor at all, and Spike simulates either one or the other in a given run.
+
 </details>
 
 **Q7.** Which registry will you publish to, and why? Write down the full
@@ -478,6 +544,7 @@ image name and the tag scheme you will use.
 <details>
 <summary>Your answer</summary>
 
+I would like to put it into github container registry. So: `ghcr.io/rgantonio/compiler-study:v1`. So we use `rgantonio` as my github account, and `vN` as the version numbering.
 </details>
 
 **Q8.** On the shared server you might run the image with Apptainer, as your
@@ -486,6 +553,16 @@ would break there.
 
 <details>
 <summary>Your answer</summary>
+
+
+|A Dockerfile that...	 | Breaks under Apptainer because... |
+| -------------------  | --------------------------------- |
+|installs the tools under /root  |	you are not root, and a normal user cannot read /root |
+|puts files in the image's home folder, such as PATH set in ~/.bashrc	 | your real home folder from the server is mounted over it, so |those files are hidden |
+|expects root at run time, for example a start script that runs apt-get install	 | you are always your own user  |
+|relies on USER to pick a specific user or UID  |	Apptainer ignores USER  |
+|has a tool or start script that writes inside the image at run time, such as a log or cache file under /opt	 | the image is read-only  |
+|installs files readable by root only	 | your user cannot open them |
 
 </details>
 
@@ -558,25 +635,6 @@ start the image, how to mount the repo, how to rebuild the image from
 scratch and how long that takes, the table of pinned versions, and the notes
 per machine from T1.
 
-## 7. Drawing task
-
-Make one drawing with two parts. Paper and a photo is fine. Save it in
-`drawings/`.
-
-**Part A: the build.** Draw each stage of your Dockerfile as a box. In each
-box write what is installed or built there. Draw an arrow for every
-`COPY --from`, labelled with the folder that is copied. Mark which box
-becomes the published image, and write the size you measured next to each
-stage.
-
-**Part B: who runs where.** Draw the path of your hello world from source
-file to output on the terminal, once for QEMU and once for Spike with pk.
-For every program on the path (GCC, the linker, QEMU, Spike, pk, hello
-itself) mark whether it is x86-64 code or RISC-V code, and mark where the
-`write` system call ends up.
-
-Do part A before T3 and correct it afterwards if the real file turned out
-differently. Do part B after T6.
 
 ## 8. Test plan
 
@@ -611,24 +669,51 @@ it. Say in `docs/setup.md` how you ran them.
 Compile the same hello world for RV32IM and for your RV64 configuration, with
 the same optimization level, and fill in the table.
 
-| | RV32IM | RV64 |
-|---|---|---|
-| `-march` and `-mabi` you used | | |
-| Output of `-print-multi-directory` | | |
-| ELF class and machine from `readelf -h` | | |
-| `text`, `data`, `bss` from `size` | | |
-| Simulator commands that ran it | | |
-| `sizeof(long)` and `sizeof(void *)`, printed by a small program | | |
+|                                                                 | RV32IM                                  | RV64                                   |
+|-----------------------------------------------------------------|-----------------------------------------|----------------------------------------|
+| `-march` and `-mabi` you used                                   | `-march=rv32im -mabi=ilp32`             | `-march=rv64imac -mabi=lp64`           |
+| Output of `-print-multi-directory`                              | `rv32im/ilp32`                          |  `rv64imac/lp64`                       |
+| ELF class and machine from `readelf -h`                         | ELF32 and RISC-V                        | ELF64 and RISC-V                       |
+| `text`, `data`, `bss` from `size`                               |  text = 48793, data = 1151, bss = 37040 | text = 46361, data = 1215, bss = 41224 |
+| Simulator commands that ran it                                  | `qemu-riscv32`                          | `qemu-riscv64`                         |
+| `sizeof(long)` and `sizeof(void *)`, printed by a small program | 4, 4                                    | 8, 8                                   |
+
+A few info about the `text`, `data`, and `bss`: 
+
+- `text`: can sit in ROM or flash, since it is never written. The machine instructions, plus constants that never change. Your functions, the string `"Hello..."`.
+- `data`: needs RAM, and its starting values must also be stored in the file, because they have to come from somewhere. Global and static variables that start with a value other than zero. `int counter = 5;` outside any function
+- `bss`: needs RAM too, but takes no space in the file. The file only records how big it is, and the startup code fills it with zeros. Global and static variables that start at zero or have no starting value. `int buffer[1000];` outside any function
 
 Then disassemble `main` from both with `objdump -d` and answer:
 
 1. Which instructions appear in one and not in the other? Give two examples
    and say what the difference is for.
+
+<details>
+<summary>Your answer</summary>
+
+For RISCV32, it uses `lw` and `sw`. Then for RISCV64, it uses `ld` and `sd`.
+
+</details>
+
+
 2. How does the stack frame of `main` differ in size, and why?
+
+<details>
+<summary>Your answer</summary>
+
+The frame size is the same for both, but I noticed that for RV32 we have `sw	ra,12(sp)` while RV64 has `sd	ra,8(sp)` a difference in word sizes.
+
+</details>
+
+
+
 3. The program is the same C. Why is the `text` size not the same?
 
 <details>
 <summary>Your answers</summary>
+
+My hunch is that the `text` depends on the word size used. 
 
 </details>
 
