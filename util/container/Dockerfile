@@ -38,7 +38,7 @@ ARG PK_COMMIT=9c61d29846d8521d9487a57739330f9682d5b542
 # Parallel jobs for make. Compiling GCC needs about 2 GB of memory per job,
 # so choose this from your memory, not from your core count. Changing the
 # value makes the build steps run again, so choose once per machine.
-ARG JOBS=4
+ARG JOBS=10
 
 # Architecture of the 32-bit pk. It must be a combination that exists in the
 # multilib list. The 64-bit pk uses pk's default (RV64GC).
