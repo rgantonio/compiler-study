@@ -11,7 +11,7 @@ the toolchain. The plan is in [docs/syllabus.md](../docs/syllabus.md).
 
 | Exercise | Topic | Expected time | Sheet | Status |
 |---|---|---|---|---|
-| [e1](e1_dockerfile/README.md) | Write the Dockerfile: toolchain, QEMU, Spike, pk. Publish the image. | About a day, plus 1 to 3 hours of unattended build | Ready | In progress: the image builds and is checked locally. Publishing and `docs/setup.md` are open. |
+| [e1](e1_dockerfile/README.md) | Write the Dockerfile: toolchain, QEMU, Spike, pk. Publish the image. | About a day, plus 1 to 3 hours of unattended build | Ready | Done |
 | e2 | Run preprocess, compile, assemble and link one step at a time. | To be set | Not written | Not started |
 | e3 | Repo Makefile with an `XLEN` switch and a test runner. | To be set | Not written | Not started |
 

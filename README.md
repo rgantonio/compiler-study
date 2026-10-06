@@ -51,36 +51,25 @@ the top folder of the repo.
 
 The versions are set at the top of the Dockerfile and nowhere else.
 
-### Build the image
+### Get the image
 
-The image is not published yet. Until it is, build it locally, one stage at
-a time:
+The image is published as `ghcr.io/rgantonio/compiler-study:v1`. It is
+public, so no login is needed:
 
 ```
-docker build --target spike     -t compiler-study:spike     -f util/container/Dockerfile util/container
-docker build --target toolchain -t compiler-study:toolchain -f util/container/Dockerfile util/container
-docker build --target final     -t compiler-study:dev       -f util/container/Dockerfile util/container
+docker pull ghcr.io/rgantonio/compiler-study:v1
 ```
 
-| Stage | Time | Notes |
-|---|---|---|
-| `spike` | Minutes | |
-| `toolchain` | 1 to 3 hours | Needs about 20 GB of free disk while it builds |
-| `final` | Minutes | Also builds the `pk` stage, and ends with a smoke test |
-
-The default is 4 parallel jobs, which suits a machine with 8 GB of memory.
-On a larger machine add `--build-arg JOBS=<n>`, with about 2 GB of memory
-per job. Choose the value once: changing it makes the build steps run again.
-
-For the long build, keep a log by adding `--progress=plain` and
-`2>&1 | tee build.log`.
+It takes 1.13 GB on disk. [docs/setup.md](docs/setup.md) has what you need
+installed, the notes per machine, how to rebuild the image from the
+Dockerfile, and the version history.
 
 ### Use the image
 
 A shell in the container, with the repo mounted at `/work`:
 
 ```
-docker run --rm -it -v "$PWD":/work compiler-study:dev
+docker run --rm -it -v "$PWD":/work ghcr.io/rgantonio/compiler-study:v1
 ```
 
 Add `--user "$(id -u):$(id -g)"` after `--rm` if files created in the repo
@@ -124,17 +113,12 @@ read them and do not define their own copies.
 ### Check the image
 
 ```
-docker run --rm -v "$PWD":/work compiler-study:dev bash p0_setup/e1_dockerfile/test/check_docker.sh
+docker run --rm -v "$PWD":/work ghcr.io/rgantonio/compiler-study:v1 bash p0_setup/e1_dockerfile/test/check_docker.sh
 ```
 
 The script prints one line per test case and ends with the number of failed
 checks. The test plan it follows is in section 8 of the
 [p0/e1 sheet](p0_setup/e1_dockerfile/README.md).
-
-### Still to come
-
-Publishing the image as `ghcr.io/rgantonio/compiler-study:v1`, and
-`docs/setup.md` with the pull commands and the notes per machine.
 
 ## License
 
